@@ -1,0 +1,7 @@
+-r requirements.txt
+# Install PyTorch 2.8.0+cu128 from the server image/provider first.
+# FlashAttention remains ABI-coupled to the provider image. Transformer Engine
+# is pinned to the checkpoint-verified production version; TE 2.16 is tested
+# only in benchmark_te216_isolated.sh's virtual environment.
+flash-attn
+transformer-engine[pytorch]==2.15.0

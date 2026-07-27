@@ -1,0 +1,13 @@
+numpy>=2.0
+PyYAML>=6.0
+tokenizers>=0.21
+tqdm>=4.66
+packaging>=24.0
+psutil>=6.0
+matplotlib>=3.9
+ninja>=1.11
+# Validated on RTX PRO 6000 / PyTorch 2.8.0+cu128. Keep this pinned because
+# the fused CE implementation participates in the formal throughput path.
+liger-kernel==0.8.1
+# Optional only when the raw source is Parquet:
+pyarrow>=18.0

@@ -1,0 +1,381 @@
+project:
+  name: caelum-ouzel
+  tokenizer_path: tokenizer/tokenizer.json
+  checkpoints_dir: All-checkpoints
+  pretrain_manifest: dataset/pretrain_manifest.yaml
+  sft_data_path: dataset/SFT
+  dpo_data_path: dataset/DPO
+
+model:
+  # ~1.699B total parameters / ~0.350B active parameters per token.
+  # GQA attention: 8 query heads, 4 key/value heads, head_dim=128.
+  vocab_size: 32768
+  block_size: 32768
+  n_layer: 28
+  n_head: 8
+  n_kv_head: 4
+  n_embd: 1024
+  n_expert: 8
+  expert_hidden_size: 2240
+  shared_expert_hidden_size: 416
+  top_k: 1
+  dropout: 0.0
+  bias: false
+  norm_eps: 1.0e-5
+  rope_theta: 1000000.0
+  tie_weights: true
+  gradient_checkpointing: false
+  use_reentrant_checkpoint: false
+  router_aux_loss_coef: 0.01
+  router_z_loss_coef: 0.001
+  # Full-activation jitter is costly on this small MoE and unnecessary after
+  # tokenizer/model warmup; keep routing deterministic for maximum throughput.
+  router_jitter: 0.0
+  # Keep the numerical baseline in true FP32. Switch only for the controlled
+  # BF16-router A/B; softmax/z-loss/statistics remain FP32 in both modes.
+  router_gemm_precision: float32
+  use_transformer_engine: true
+  # A/B switch: TE fused RMSNorm avoids native full-activation FP32 casts.
+  use_te_rmsnorm: true
+  # Production remains on the checkpoint-verified TE 2.15 module. The "ops"
+  # backend accepts CUDA split tensors, but only switch after the isolated
+  # TE 2.16 + MXFP8/BF16 profiler proves the graph-safe path on this machine.
+  te_grouped_linear_backend: legacy
+  # Liger consumes the 32K projection in chunks without retaining a complete
+  # [tokens, vocab] logits tensor. check_environment.py runs a production-shape
+  # numerical/backward gate before paid training. "checkpointed" is the exact
+  # low-memory, recompute-heavy emergency fallback.
+  linear_cross_entropy_backend: liger
+  linear_cross_entropy_chunk_size: 2048
+  require_flash_attn_for_packing: true
+
+smoke_model:
+  vocab_size: 512
+  block_size: 128
+  n_layer: 2
+  n_head: 4
+  n_kv_head: 2
+  n_embd: 128
+  n_expert: 4
+  expert_hidden_size: 192
+  shared_expert_hidden_size: 64
+  top_k: 1
+  dropout: 0.0
+  bias: false
+  norm_eps: 1.0e-5
+  rope_theta: 10000.0
+  tie_weights: true
+  gradient_checkpointing: false
+  use_reentrant_checkpoint: false
+  router_aux_loss_coef: 0.01
+  router_z_loss_coef: 0.001
+  router_jitter: 0.0
+  router_gemm_precision: float32
+  use_transformer_engine: false
+  use_te_rmsnorm: false
+  te_grouped_linear_backend: legacy
+  linear_cross_entropy_backend: standard
+  linear_cross_entropy_chunk_size: 128
+  require_flash_attn_for_packing: false
+
+tokenizer:
+  vocab_size: 32768
+  min_frequency: 2
+  workers: 20
+  special_tokens:
+    pad: <|pad|>
+    bos: <|bos|>
+    eos: <|eos|>
+    unk: <|unk|>
+    user: <|user|>
+    assistant: <|assistant|>
+    system: <|system|>
+    developer: <|developer|>
+    tool: <|tool|>
+    observation: <|observation|>
+    im_start: <|im_start|>
+    im_end: <|im_end|>
+    message_start: <|message_start|>
+    message_end: <|message_end|>
+    turn_start: <|turn_start|>
+    turn_end: <|turn_end|>
+    conversation_start: <|conversation_start|>
+    conversation_end: <|conversation_end|>
+    think_start: <|think|>
+    think_end: <|/think|>
+    reasoning_start: <|reasoning_start|>
+    reasoning_end: <|reasoning_end|>
+    analysis_start: <|analysis_start|>
+    analysis_end: <|analysis_end|>
+    final_start: <|final_start|>
+    final_end: <|final_end|>
+    tool_call: <|tool_call|>
+    tool_call_end: <|tool_call_end|>
+    tool_response: <|tool_response|>
+    tool_response_end: <|tool_response_end|>
+    tool_result: <|tool_result|>
+    tool_result_end: <|tool_result_end|>
+    tools_start: <|tools_start|>
+    tools_end: <|tools_end|>
+    function_call: <|function_call|>
+    function_response: <|function_response|>
+    arguments_start: <|arguments_start|>
+    arguments_end: <|arguments_end|>
+    json_start: <|json_start|>
+    json_end: <|json_end|>
+    fim_prefix: <|fim_prefix|>
+    fim_middle: <|fim_middle|>
+    fim_suffix: <|fim_suffix|>
+    code_start: <|code_start|>
+    code_end: <|code_end|>
+    math_start: <|math_start|>
+    math_end: <|math_end|>
+    latex_start: <|latex_start|>
+    latex_end: <|latex_end|>
+    equation_start: <|equation_start|>
+    equation_end: <|equation_end|>
+    chemistry_start: <|chemistry_start|>
+    chemistry_end: <|chemistry_end|>
+    smiles_start: <|smiles_start|>
+    smiles_end: <|smiles_end|>
+    reaction_start: <|reaction_start|>
+    reaction_end: <|reaction_end|>
+    molecule_start: <|molecule_start|>
+    molecule_end: <|molecule_end|>
+    document_start: <|document_start|>
+    document_end: <|document_end|>
+    title_start: <|title_start|>
+    title_end: <|title_end|>
+    citation_start: <|citation_start|>
+    citation_end: <|citation_end|>
+    quote_start: <|quote_start|>
+    quote_end: <|quote_end|>
+    table_start: <|table_start|>
+    table_end: <|table_end|>
+    search_query: <|search_query|>
+    search_result: <|search_result|>
+    retrieval_start: <|retrieval_start|>
+    retrieval_end: <|retrieval_end|>
+    image_start: <|image_start|>
+    image_end: <|image_end|>
+    audio_start: <|audio_start|>
+    audio_end: <|audio_end|>
+    video_start: <|video_start|>
+    video_end: <|video_end|>
+    mask: <|mask|>
+    separator: <|sep|>
+    padding_side: <|padding_side|>
+    reserved_000: <|reserved_000|>
+    reserved_001: <|reserved_001|>
+    reserved_002: <|reserved_002|>
+    reserved_003: <|reserved_003|>
+    reserved_004: <|reserved_004|>
+    reserved_005: <|reserved_005|>
+    reserved_006: <|reserved_006|>
+    reserved_007: <|reserved_007|>
+    reserved_008: <|reserved_008|>
+    reserved_009: <|reserved_009|>
+    reserved_010: <|reserved_010|>
+    reserved_011: <|reserved_011|>
+    reserved_012: <|reserved_012|>
+    reserved_013: <|reserved_013|>
+    reserved_014: <|reserved_014|>
+    reserved_015: <|reserved_015|>
+    reserved_016: <|reserved_016|>
+    reserved_017: <|reserved_017|>
+    reserved_018: <|reserved_018|>
+    reserved_019: <|reserved_019|>
+    reserved_020: <|reserved_020|>
+    reserved_021: <|reserved_021|>
+    reserved_022: <|reserved_022|>
+    reserved_023: <|reserved_023|>
+    reserved_024: <|reserved_024|>
+    reserved_025: <|reserved_025|>
+    reserved_026: <|reserved_026|>
+    reserved_027: <|reserved_027|>
+    reserved_028: <|reserved_028|>
+    reserved_029: <|reserved_029|>
+    reserved_030: <|reserved_030|>
+    reserved_031: <|reserved_031|>
+    reserved_032: <|reserved_032|>
+    reserved_033: <|reserved_033|>
+    reserved_034: <|reserved_034|>
+    reserved_035: <|reserved_035|>
+    reserved_036: <|reserved_036|>
+    reserved_037: <|reserved_037|>
+    reserved_038: <|reserved_038|>
+    reserved_039: <|reserved_039|>
+    reserved_040: <|reserved_040|>
+    reserved_041: <|reserved_041|>
+    reserved_042: <|reserved_042|>
+    reserved_043: <|reserved_043|>
+    reserved_044: <|reserved_044|>
+    reserved_045: <|reserved_045|>
+    reserved_046: <|reserved_046|>
+    reserved_047: <|reserved_047|>
+    reserved_048: <|reserved_048|>
+    reserved_049: <|reserved_049|>
+    reserved_050: <|reserved_050|>
+    reserved_051: <|reserved_051|>
+    reserved_052: <|reserved_052|>
+    reserved_053: <|reserved_053|>
+    reserved_054: <|reserved_054|>
+    reserved_055: <|reserved_055|>
+    reserved_056: <|reserved_056|>
+    reserved_057: <|reserved_057|>
+    reserved_058: <|reserved_058|>
+    reserved_059: <|reserved_059|>
+    reserved_060: <|reserved_060|>
+    reserved_061: <|reserved_061|>
+    reserved_062: <|reserved_062|>
+    reserved_063: <|reserved_063|>
+
+runtime:
+  max_workers: 22
+  torch_threads: 22
+  interop_threads: 2
+  # RTX PRO 6000 is attached to NUMA node 0 on the current host.
+  cpu_affinity: 0-21
+  prefetch_batches: 3
+  pin_memory: true
+  # Randomise the local document order after the deterministic no-replacement
+  # traversal, so source-ordered encoded shards cannot dominate a microbatch.
+  pretrain_document_shuffle_buffer: 1024
+  # Train/eval share one cache. Token payloads beyond this exact cap stay mmap.
+  dataset_preload_max_gib: 50
+  # Discover separately pretokenized corpora while training. A directory is
+  # accepted only after its corpus.json has complete:true and passes the normal
+  # shard/tokenizer fingerprint validation; raw downloads are never read here.
+  pretrain_corpus_refresh_interval_seconds: 600
+  pretrain_corpus_discovery_root: ../dataset
+  pretrain_corpus_discovery_glob: encoded_*
+  pretrain_corpus_discovery_weight: 1.0
+  pretrain_corpus_discovery_val_docs: 1000
+  # The formal packed CUDA path must use FlashAttention 2. Set true only for
+  # diagnostics; SDPA's segmented fallback is intentionally slow.
+  allow_packed_sdpa_cuda: false
+  # Dashboard rendering happens in daemon threads and never touches the CUDA
+  # stream. The provider maps 127.0.0.1:6006 to the public HTTPS endpoint.
+  loss_dashboard: true
+  loss_dashboard_port: 6006
+
+precision:
+  dtype: bfloat16
+  # RTX PRO 6000 sm_120 + TE 2.15: device-side fused MoE dispatch, cached FP8
+  # weights and DelayedScaling measured 45.70k tok/s versus native BF16 42.74k.
+  fp8: true
+  # DelayedScaling is faster than Float8CurrentScaling for this model. MXFP8
+  # reports unsupported for all SM120 GEMM layouts and must not be forced.
+  fp8_recipe: delayed
+  fp8_amax_history_len: 16
+  tf32: true
+
+training:
+  seed: 1337
+  # RTX PRO 6000 A/B (40,960 x 3, FP8 + TE legacy GroupedLinear): compile is
+  # stable. Capturing the TE scalar output removes a Dynamo graph break and
+  # improves the measured mean throughput without changing training math.
+  compile: true
+  compile_mode: max-autotune-no-cudagraphs
+  compile_capture_scalar_outputs: true
+  optimizer: adamw
+  learning_rate: 3.0e-4
+  min_lr: 3.0e-5
+  warmup_ratio: 0.01
+  weight_decay: 0.1
+  betas: [0.9, 0.95]
+  eps: 1.0e-8
+  grad_clip: 1.0
+  # Kept as explicit run metadata: production trainers now always check every
+  # optimizer step, rewind the data cursor, save, and stop on NaN/Inf.
+  grad_finite_check_interval: 1
+  # Set the formal run from benchmark_pro6000.py. The trainer never wraps the
+  # corpus: target_tokens is a one-pass budget, not "repeat until step N".
+  target_tokens: 2000000000
+  # Applied only to budget-derived targets, after passing measured E2E tok/s.
+  budget_throughput_safety_factor: 0.95
+  # Explicit memory/throughput profiles. "balanced" is the default until a
+  # fixed machine passes several hundred steps, all sequence stages, eval,
+  # checkpoint and resume with the extreme profile.
+  batch_profile: balanced
+  batch_profiles:
+    safe:
+      tokens_per_microbatch: 16384
+      gradient_accumulation_steps: 8
+    balanced:
+      tokens_per_microbatch: 32768
+      gradient_accumulation_steps: 4
+    extreme:
+      tokens_per_microbatch: 40960
+      gradient_accumulation_steps: 3
+  tokens_per_microbatch: 32768
+  gradient_accumulation_steps: 4
+  sequence_schedule:
+    - until: 0.45
+      max_seq_len: 512
+    - until: 0.55
+      max_seq_len: 1024
+    - until: 1.0
+      max_seq_len: 2048
+  val_batches: 20
+  eval_interval: 500
+  save_interval: 500
+  # A full model + AdamW checkpoint is ~19 GiB on the current server. Atomic
+  # save needs one additional temporary copy; with the existing 19 GiB legacy
+  # checkpoint and only ~42 GiB free, retaining two numbered checkpoints would
+  # make the third save fail. last.pt is a hard link, so keep one numbered file.
+  keep_last_checkpoints: 3
+  # Avoid a CUDA event synchronization plus six scalar D2H reads every step.
+  log_interval: 10
+  # Reset after first-use compile/autotune noise; dashboard then reports both
+  # steady-state allocated and allocator-reserved peaks.
+  memory_peak_reset_step: 10
+
+sft:
+  epochs: 1
+  tokens_per_microbatch: 8192
+  gradient_accumulation_steps: 8
+  max_seq_len: 4096
+  learning_rate: 1.0e-5
+  min_lr: 1.0e-6
+  warmup_ratio: 0.03
+  weight_decay: 0.05
+  grad_clip: 1.0
+  grad_finite_check_interval: 1
+  val_records: 300
+  eval_interval: 100
+  save_interval: 250
+
+dpo:
+  epochs: 1
+  # Two preference pairs amortize collation/H2D while leaving room for DPO
+  # backward. Reference/eval can use a larger independent inference batch.
+  batch_size: 2
+  reference_batch_size: 4
+  gradient_accumulation_steps: 8
+  max_seq_len: 4096
+  learning_rate: 5.0e-6
+  beta: 0.1
+  grad_clip: 1.0
+  grad_finite_check_interval: 1
+  val_records: 100
+  eval_interval: 100
+  save_interval: 250
+  log_interval: 10
+  # Precompute fixed reference chosen/rejected log-probabilities once. This
+  # avoids keeping a second 1.7B model resident for the entire DPO run.
+  precompute_reference_logps: true
+
+smoke:
+  tokenizer_path: smoke/tokenizer.json
+  pretrain_manifest: smoke/pretrain_manifest.yaml
+  sft_data_path: smoke/sft.jsonl
+  dpo_data_path: smoke/dpo.jsonl
+  base_out_dir: All-checkpoints/smoke/base
+  sft_out_dir: All-checkpoints/smoke/sft
+  dpo_out_dir: All-checkpoints/smoke/dpo
+  target_tokens: 256
+  tokens_per_microbatch: 64
+  gradient_accumulation_steps: 1
+  max_seq_len: 32
+  max_records: 16

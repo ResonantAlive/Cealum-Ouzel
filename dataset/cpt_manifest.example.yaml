@@ -1,0 +1,8 @@
+# Copy this file to cpt_manifest.yaml and point path at a completed encoded corpus.
+# Each corpus directory must contain corpus.json with complete: true and a tokenizer
+# fingerprint matching tokenizer/tokenizer.json.
+val_docs_per_corpus: 1000
+corpora:
+  - name: cpt-32k
+    path: encoded/cpt-32k
+    weight: 1.0

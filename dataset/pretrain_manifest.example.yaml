@@ -1,0 +1,11 @@
+val_docs_per_corpus: 100
+corpora:
+  - name: distillation
+    path: encoded/distillation
+    weight: 0.50
+  - name: cci
+    path: encoded/cci
+    weight: 0.20
+  - name: fineweb_edu
+    path: encoded/fineweb_edu
+    weight: 0.30
